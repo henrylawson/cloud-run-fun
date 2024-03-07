@@ -57,24 +57,48 @@ get '/gcs-status' do
   status_code
 end
 
+def updload_a_file(prefix, bucket)
+  
+
+  [file, time]
+end
+
 get '/gcs-write' do
   storage = Google::Cloud::Storage.new
   gcs_status_bucket = ENV.fetch('GCS_STATUS_BUCKET')
-  local_file_obj = StringIO.new("A" * 8 * 1000000000)
-  file_name   = "large-file-#{DateTime.now.iso8601(3)}.txt"
-
-  storage = Google::Cloud::Storage.new
   bucket  = storage.bucket gcs_status_bucket
+
+  local_file_obj = StringIO.new("A" * params.fetch(:gb).to_f * 1024 * 1024 * 1024)
+  file_name   = "large-file-#{DateTime.now.iso8601(3)}.txt"
 
   local_file_obj.rewind
 
   file = nil
+
   time = Benchmark.realtime do
     file = bucket.create_file local_file_obj, file_name
-   end
+  end
 
-   size_in_bytes = file.size
+  size_in_bytes = file.size
 
   status 200
-  "File uploaded in #{time} seconds --- #{size_in_bytes} bytes --- #{(size_in_bytes / 1024 / 1024) / time} MB/s"
+  "File uploaded in #{time} seconds --- #{size_in_bytes / 1024 / 1024 / 1024} GB --- #{(size_in_bytes / 1024 / 1024) / time} MB/s"
+end
+
+get '/gcs-download' do
+  storage = Google::Cloud::Storage.new
+
+  gcs_status_bucket = ENV.fetch('GCS_STATUS_BUCKET')
+  gcs_file = params.fetch(:file)
+  bucket = storage.bucket gcs_status_bucket
+  file = bucket.file gcs_file
+
+  time = Benchmark.realtime do
+    downloaded = file.download
+  end
+
+  size_in_bytes = file.size
+
+  status 200
+  "File downloaded in #{time} seconds --- #{size_in_bytes / 1024 / 1024 / 1024} GB --- #{(size_in_bytes / 1024 / 1024) / time} MB/s"
 end
