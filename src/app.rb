@@ -2,9 +2,12 @@ require 'sinatra'
 require 'json/ext'
 require 'open-uri'
 require 'google/cloud/storage'
+require 'benchmark'
 
-set :bind, '0.0.0.0'
 port = ENV['PORT'] || '8080'
+
+set :server_settings, timeout: 3600
+set :bind, '0.0.0.0'
 set :port, port
 
 get '/' do
@@ -52,4 +55,26 @@ get '/gcs-status' do
 
   status Integer(status_code)
   status_code
+end
+
+get '/gcs-write' do
+  storage = Google::Cloud::Storage.new
+  gcs_status_bucket = ENV.fetch('GCS_STATUS_BUCKET')
+  local_file_obj = StringIO.new("A" * 8 * 1000000000)
+  file_name   = "large-file-#{DateTime.now.iso8601(3)}.txt"
+
+  storage = Google::Cloud::Storage.new
+  bucket  = storage.bucket gcs_status_bucket
+
+  local_file_obj.rewind
+
+  file = nil
+  time = Benchmark.realtime do
+    file = bucket.create_file local_file_obj, file_name
+   end
+
+   size_in_bytes = file.size
+
+  status 200
+  "File uploaded in #{time} seconds --- #{size_in_bytes} bytes --- #{(size_in_bytes / 1024 / 1024) / time} MB/s"
 end
